@@ -4,6 +4,7 @@ local class = require 'ext.class'
 local table = require 'ext.table'
 local string = require 'ext.string'
 local tolua = require 'ext.tolua'
+
 local fn, trace = ...
 if not fn then error("expected: run.lua <filename>") end
 local d = assert(file(fn)):read()
@@ -44,10 +45,29 @@ end
 local op = require 'ext.op'
 local opforsym = {
 	['+'] = op.add,
-	['-'] = op.sub,
+	['-'] = op.sub,	-- TODO unm for single-arg
 	['*'] = op.mul,
 	['/'] = op.div,
+	['%'] = op.mod,
+	['..'] = op.concat,
+	['#'] = op.len,
+	['?'] = function(a,b,c) if a then return b else return c end end,
+	['&'] = op.band,
+	['|'] = op.bor,
+	['~'] = op.bnot,
+	['^'] = op.bxor,
+	['&&'] = op.land,
+	['||'] = op.lor,
+	['=='] = op.eq,
+	['!='] = op.ne,
+	['<'] = op.lt,
+	['<='] = op.le,
+	['>'] = op.gt,
+	['>='] = op.ge,
+	['<<'] = op.lshift,
+	['>>'] = op.rshift,
 }
+-- TODO arshift, rotate left , rotate right, int-div
 
 function Object:eval()
 	if self.type == 'string' 
