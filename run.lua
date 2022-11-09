@@ -4,7 +4,7 @@ local class = require 'ext.class'
 local table = require 'ext.table'
 local string = require 'ext.string'
 local tolua = require 'ext.tolua'
-local fn = ...
+local fn, trace = ...
 if not fn then error("expected: run.lua <filename>") end
 local d = assert(file(fn)):read()
 local ls = string.split(d, '\n')
@@ -41,8 +41,18 @@ function Object:__concat(o)
 	return tostring(self)..tostring(o)
 end
 
+local op = require 'ext.op'
+local opforsym = {
+	['+'] = op.add,
+	['-'] = op.sub,
+	['*'] = op.mul,
+	['/'] = op.div,
+}
+
 function Object:eval()
-	if self.type == 'string' then
+	if self.type == 'string' 
+	or self.type == 'number'
+	then
 		return self.value
 	end
 
@@ -56,12 +66,23 @@ function Object:eval()
 			args[i] = self.conns.up[i]:eval()
 		end
 	end
-	
+
+	-- is it a function def?
+	-- then just forward return
 	if self.value:match'^:(.*):$' then
 		return args:unpack(1,n)
 	end
 
-	local f = assert(env[self.value], "failed to find "..self.value)
+	if trace then
+		print('calling '..self.value)
+	end
+	local f
+	if self.type == 'op' then
+		f = assert(opforsym[self.value], "failed to find op for "..self.value)
+	else
+		f = assert(env[self.value], "failed to find "..self.value)
+	end
+
 	return f(args:unpack(1,n))
 end
 
@@ -103,6 +124,25 @@ for y=1,#ls do
 				h = 1,
 			})
 			x = k
+		elseif c == '(' then
+			-- read until )
+			local k = x+1
+			while k <= n do
+				local kc = l:sub(k,k)
+				if kc == ')' then
+					break
+				end
+				k = k + 1
+			end
+			objs:insert(Object{
+				type = 'op',
+				value = l:sub(x+1,k-1),
+				x = x,
+				y = y,
+				w = k-x+1,
+				h = 1,
+			})
+			x = k
 		else
 			-- read until non-name token
 			local k = x+1
@@ -118,14 +158,27 @@ for y=1,#ls do
 					break 
 				end
 			end
-			objs:insert(Object{
-				type = 'name',
-				value = l:sub(x,k),
-				x = x,
-				y = y,
-				w = k-x+1,
-				h = 1,
-			})
+			local value = l:sub(x,k)
+			local num = tonumber(value)
+			if num then
+				objs:insert(Object{
+					type = 'number',
+					value = num,
+					x = x,
+					y = y,
+					w = k-x+1,
+					h = 1,
+				})		
+			else
+				objs:insert(Object{
+					type = 'name',
+					value = value,
+					x = x,
+					y = y,
+					w = k-x+1,
+					h = 1,
+				})
+			end
 			x = k
 		end
 		x = x + 1
@@ -197,7 +250,7 @@ repeat
 			for side, conns in pairs(obj.conns) do
 				local redo
 				repeat
-					print(i, #conns, conns[1].type)
+--print(i, #conns, conns[1] and conns[1].type)
 					redo = false
 					for j=#conns,1,-1 do
 						local other = conns[j]
@@ -243,27 +296,20 @@ for i=#objs,1,-1 do
 	end
 end
 
--- [[
-print'objs:'
-for i,obj in ipairs(objs) do
-	print(objs[i])
+if trace then
+	print'objs:'
+	for i,obj in ipairs(objs) do
+		print(objs[i])
+	end
 end
---]]
 
 --now starting with 'done', or a function def ... or 'main' or something ...
 -- ... trace left-most and run all those nodes
 
-local done = select(2, objs:find(nil, function(o) 
-	return o.type == 'name' and o.value == ':done:' 
-end))
-print('done', done)
-local trace
-if done then
-	-- executing ":done:" function ...
-
-	--print'found done'
+local function call(node)
+	--print'found node'
 	local leftmost = table()
-	local ns = table{done}
+	local ns = table{node}
 	while #ns > 0 do
 		local o = ns:remove(1)
 		if o.conns and o.conns.left then
@@ -272,11 +318,14 @@ if done then
 			leftmost:insert(o)
 		end
 	end
-	print'leftmost:'
-	for _,l in ipairs(leftmost) do
-		print(l)
+	if trace then
+		print'leftmost:'
+		for _,l in ipairs(leftmost) do
+			print(l)
+		end
 	end
 
+	local noderesults
 	local exec = table(leftmost)
 	while #exec > 0 do
 		local o = exec:remove(1)
@@ -287,6 +336,30 @@ if done then
 		if trace then
 			print('executing '..o)
 		end
-		o:eval()
+		local results = table.pack(o:eval())
+		if o == node then
+			noderesults = results
+		end
 	end
+	-- TODO return anything?
+	if noderesults then
+		return noderesults:unpack()
+	end
+end
+
+for _,obj in ipairs(objs) do
+	-- TODO for these names, change the type to 'func' or something
+	if obj.type == 'name' then
+		--assert(obj.value, "got a name obj with no value "..tostring(obj))
+		local funcname = obj.value:match'^:(.*):$' 
+		if funcname then
+			env[funcname] = function()
+				return call(obj)
+			end
+		end
+	end
+end
+
+if env.done then
+	env.done()
 end
