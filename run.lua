@@ -375,27 +375,14 @@ end
 --now starting with 'done', or a function def ... or 'main' or something ...
 -- ... trace left-most and run all those nodes
 
-local function call(node)
+local function call(node, ...)
+	-- ... is the input arg values, to replace with all args in the current stack
+	-- yes now we need a call-stack
+	-- TODO
 	--print'found node'
-	local leftmost = table()
-	local ns = table{node}
-	while #ns > 0 do
-		local o = ns:remove(1)
-		if o.conns.left then
-			ns:append(o.conns.left)
-		else
-			leftmost:insert(o)
-		end
-	end
-	if trace then
-		print'leftmost:'
-		for _,l in ipairs(leftmost) do
-			print(l)
-		end
-	end
-
+	
 	local noderesults
-	local exec = table(leftmost)
+	local exec = table(node.leftmost)
 	while #exec > 0 do
 		local o = exec:remove(1)
 		if o.conns.right then
@@ -419,8 +406,29 @@ end
 for _,obj in ipairs(nodes) do
 	-- TODO for these names, change the type to 'func' or something
 	if Func:isa(obj) then
-		env[obj.value] = function()
-			return call(obj)
+		
+		-- [[ find and track all left-most of all functions as their execution starting points
+		-- TODO instead of finding the leftmost upon call, find it upon function initialization
+		obj.leftmost = table()
+		local ns = table{node}
+		while #ns > 0 do
+			local o = ns:remove(1)
+			if o.conns.left then
+				ns:append(o.conns.left)
+			else
+				obj.leftmost:insert(o)
+			end
+		end
+		if trace then
+			print'leftmost:'
+			for _,l in ipairs(obj.leftmost) do
+				print(l)
+			end
+		end
+		--]]
+
+		env[obj.value] = function(...)
+			return call(obj, ...)
 		end
 	end
 end
