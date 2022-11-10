@@ -48,39 +48,46 @@ function Node:getLuaFunc()
 	local f = env[self.value]
 	--]]
 	-- [[ using expressions
-	local f = load('return '..self.value, nil, nil, env)
+	local f = assert(load('return '..self.value, nil, nil, env))()
 	--]]
 	return assert(f, "failed to find "..self.value)
 end
 
-function Node:eval()
+function Node:getFuncArgValues()
 	-- if its :something: then idk .. return?
-
 	local args = table()
-	local n
 	if self.conns and self.conns.up then
-		n = #self.conns.up
-		for i=1,n do
+		args.n = #self.conns.up
+		for i=1,args.n do
 			args[i] = self.conns.up[i]:eval()
 		end
 	end
+	return args
+end
 
-	-- is it a function def?
-	-- then just forward return
-	if self.value:match'^:(.*):$' then
-		return args:unpack(1,n)
-	end
-
+function Node:eval()
+	local args = self:getFuncArgValues()
 	if trace then
 		print('calling '..self.value)
 	end
 	local f = self:getLuaFunc()
-	return f(args:unpack(1,n))
+	return f(args:unpack())
 end
 
 local Conn = class(Node)
 
 local Name = class(Node)
+
+-- function arg
+local Arg = class(Node)
+
+-- function definition
+local Func = class(Node)
+
+-- output of function definition is just returning what gets fed into it
+function Func:eval()
+	return self:getFuncArgValues():unpack()
+end
 
 local Value = class(Node)
 
@@ -133,6 +140,20 @@ for y=1,#ls do
 	local l = ls[y]
 	local n = #l
 	local x = 1
+	
+	local function readUntil(close)
+		-- read until )
+		local k = x+1
+		while k <= n do
+			local kc = l:sub(k,k)
+			if kc == close then
+				break
+			end
+			k = k + 1
+		end
+		return k, l:sub(x+1,k-1), k-x+1
+	end
+	
 	while x <= n do
 		local c = l:sub(x,x)
 		if c == ' ' then
@@ -165,20 +186,32 @@ for y=1,#ls do
 			})
 			x = k
 		elseif c == '(' then
-			-- read until )
-			local k = x+1
-			while k <= n do
-				local kc = l:sub(k,k)
-				if kc == ')' then
-					break
-				end
-				k = k + 1
-			end
+			local k, value, w = readUntil')'
 			nodes:insert(Op{
-				value = l:sub(x+1,k-1),
+				value = value,
 				x = x,
 				y = y,
-				w = k-x+1,
+				w = w,
+				h = 1,
+			})
+			x = k
+		elseif c == '<' then
+			local k, value, w = readUntil'>'
+			nodes:insert(Arg{
+				value = value,
+				x = x,
+				y = y,
+				w = w,
+				h = 1,
+			})
+			x = k
+		elseif c == ':' then
+			local k, value, w = readUntil':'
+			nodes:insert(Func{
+				value = value,
+				x = x,
+				y = y,
+				w = w,
 				h = 1,
 			})
 			x = k
@@ -199,28 +232,32 @@ for y=1,#ls do
 			end
 			local value = l:sub(x,k)
 			local num = tonumber(value)
+			local cl = Name
 			if num then
-				nodes:insert(Number{
-					value = num,
-					x = x,
-					y = y,
-					w = k-x+1,
-					h = 1,
-				})		
-			else
-				nodes:insert(Name{
-					value = value,
-					x = x,
-					y = y,
-					w = k-x+1,
-					h = 1,
-				})
+				cl = Number
+				value = num
 			end
+			nodes:insert(cl{
+				value = value,
+				x = x,
+				y = y,
+				w = k-x+1,
+				h = 1,
+			})		
 			x = k
 		end
 		x = x + 1
 	end
 end
+
+if trace then
+	print'initially found nodes:'
+	for i,obj in ipairs(nodes) do
+		print(nodes[i])
+	end
+end
+
+
 
 -- btw what about spaces in strings?
 
@@ -334,7 +371,7 @@ for i=#nodes,1,-1 do
 end
 
 if trace then
-	print'nodes:'
+	print'after merging conns, nodes:'
 	for i,obj in ipairs(nodes) do
 		print(nodes[i])
 	end
@@ -386,13 +423,9 @@ end
 
 for _,obj in ipairs(nodes) do
 	-- TODO for these names, change the type to 'func' or something
-	if Name:isa(obj) then
-		--assert(obj.value, "got a name obj with no value "..tostring(obj))
-		local funcname = obj.value:match'^:(.*):$' 
-		if funcname then
-			env[funcname] = function()
-				return call(obj)
-			end
+	if Func:isa(obj) then
+		env[obj.value] = function()
+			return call(obj)
 		end
 	end
 end
