@@ -1,0 +1,375 @@
+
+     n     1
+     |     |
+     | /---*--\
+     | |      |
+     *-+--*-\ |
+     | |  | | |
+     | |  | (-)
+     | |  \  |
+     (>)   \ fib
+      |    | |
+      |    (*)
+      |      |
+      | /--done
+fib--(?)      
+        \    1
+         \   |
+          \-done
+
+
+   n       1
+   |       |
+   |   /---*--\
+   |   |      |
+   *---+--*-\ |
+   |   |  | | |
+   |  /|  | (-)
+   | | |  \  |
+  (<=) \   \ fib
+     \  \  | |
+      \  | (*)
+       \ \  |
+        \ | /
+         (?)
+          |  
+    fib--done      
+
+            
+            
+               
+               
+            n 1
+            | |
+   n 1      (-)
+   | |       |
+  (<=)     n fib
+     \   1 | |
+      \  | (*)
+       \ \  |
+        \ | /
+         (?)
+          |  
+    fib-done      
+
+   n 1
+   | |
+   | +---*-----\
+   | |   |     |
+   *-+---+-*-\ |
+   | |   | | | |
+   | |   | | (-)
+   | |   | |  |
+  (<=)   | | fib
+     \   | | |
+      \  | (*)
+       \ \  |
+        \ | /
+         (?)
+          |  
+    fib-done      
+
+ /--+------*-\ 1
+ |  |      | | |
+ |  | 1    | (-)
+ |  | |    |  |
+ | (<=)    | fib
+ |   |     \  |
+ |   \      (*)
+ |    \      |
+ \---\ |     |
+     | |    / 
+fib\ | \ 1 /
+ | | |  (?)
+ +-+-/   |
+   |     |
+   \---done      
+
+/--+------*-\ 1
+ |  |      | | |
+ |  | 1    | (-)
+ |  | |    |  |
+ | (<=)    | fib
+ |   |     | /
+ |   \     (*)
+ |    \  1  | 
+ |     \ | /
+ |      (?)
+ |       |
+fib-----done
+
+
+ /--+-----*-\ 1
+ |  |     | | |
+ |  | 1   | (-)
+ |  | |   |  |
+ | (<=)   | fib
+ |  |     | /
+ |  |     (*)
+ |  \  1  / 
+ |   \ | /
+ |    (?)
+ |     |
+ *--\ /
+ |  | |
+fib-(=)
+
+
+ /--+---*-\ 1
+ |  |   | | |
+ |  | 1 | (-)
+ |  | | |  |
+ | (<=) \ fib
+ |  |    \ |
+ |  |  1 (*)
+ |   \ | /
+ |    (?)
+ |     |
+ |     |
+ |     |
+fib---fib
+
+function def, up = return, down = func params
+need something to distinguish the entry/exit point from a recursive function call
+
+ /--+---*-\ 1
+ |  |   | | |
+ |  | 1 | (-)
+ |  | | |  |
+ | (<=) \ fib
+ |  |    \ |
+ |  |  1 (*)
+ |   \ | /
+ |    (?)
+ |     |
+ |   :fib:
+ |     |
+ \-----/ 
+
+       <n>
+        |
+     /--*-\ 1
+    /   | | |
+    | 1 | (-)
+    | | |  |
+   (<=) \ fib
+    |    \ |
+    |  1 (*)
+     \ | /
+      (?)
+       |
+     :fib:
+
+"hello world"
+    |
+  print
+    |
+  done
+
+
+swap?
+
+  init:               swap:     done:
+
+      a 1 b 2    c a a b b c     a b
+      | | | |    | | | | | |     | |
+start-(=)-(=)----(=)-(=)-(=)----print-done
+
+      a   b      c
+      |   |      |
+      *---+------+-*-*-----------*
+      |   |      | | |           |
+      |   *------+-+-+-*-*-------+-*
+      |   |      | | | | |       | |
+      |   |      *-+-+-+-+-*     | |
+      | 1 | 2    | | | | | |     | |
+      | | | |    | | | | | |     | |
+      (=)-(=)----(=)-(=)-(=)----print-done
+
+multiple return:
+
+   a b
+   | |
+   \-+-\
+     | |
+     | |
+    swap
+
+tie/array/bind/tuple:
+
+         a b a b
+         | | | |
+a 1 b 2  (,) swap
+| | | |   |  /  
+(=)-(=)---(=)----done
+
+         a b b a
+         | | | |
+a 1 b 2  (,) (,)
+| | | |   \  /  
+(=)-(=)---(=)----done
+
+function f(x) = x + 1
+input args are distinguished from vars/globals with :'s
+output is the assigned :
+
+:x: 1
+  | |
+  (+)
+   |
+  :f:
+
+:f: is the function def, pipes down from :f: are input args
+pipes going down into :f: is return values
+
+ /-\ 1 
+ | | |
+ | (+)
+ |  |
+ | :f:
+ |  |
+ \--/
+
+lambdas ... ?
+if we use down-input up-output then we can't use up/down for denoting assignment
+but if I use the top :: for inputs and bottom :: for the name/output then 
+then we can use down-pipe from the bottom as a ref to the function
+
+    :x: 1
+      | |
+      (+)
+       |
+ f  :lambda:
+  \   / 
+   (=)
+
+loops ... ex: C: `for(;; ++x);`
+
+     x  1
+    / \ |
+    | (+)
+    | |
+  /-(=)-\
+  |     |
+  \-----/
+
+iterators ...
+range-iterators ...
+
+         1 10
+         | |
+  x 0   range
+  | |     |
+--(=)-\   |   /---
+   |   }-for-{
+   |  /       \
+   \--+-*-\ 1 |
+      | | | | |
+      | | (+) |
+      | | |   |
+      \-(=)---/
+
+
+        1 :n:
+        |  |
+  x 0  range      x
+  | |    |        |
+  (=)-\  |  /---:sum:
+       }for{
+      /     \
+      |  x  |
+      |  |  |
+      \-(++)/
+
+
+declaring objects with fields and methods
+
+ types are functions?
+
+ float
+   |
+   x
+
+ structs?
+   
+   float
+   |
+   | string
+   | |
+   | | function
+   | | |
+   x s f
+   | | |
+   struct
+
+or should functions have signatures in their types?
+or should we have structs at all? why not just tables?
+
+t #
+| |
+(=)
+
+heterogeneous table fields?
+
+t foo
+ . bar
+  =
+
+assign a field of a table
+
+      T k
+      | |
+ T #  (.) v
+ | |    | |
+ (=)----(=)
+
+or how about the lua __newindex as a single operation
+      
+ T #  T k v
+ | |  | | /
+ (=)--(.=)
+
+or now I need some table-union functions
+
+ #
+ |
+ | "foo" 1
+ *   |  /
+ |\  | /
+ | (.=)
+ |
+ | "bar" 2
+ |   |  / 
+  \  | /
+   (.=)
+
+but who guarantees order?
+in fact unless the .= are executed (left/right) or return something (down) then the are idle
+so we have it return the table ... should it be a copy? or should it modify the table state?
+
+ #
+ |
+ | "foo" 1
+ |   |  /
+  \  | /
+   (.=)
+    /
+   /
+  /
+ |
+ | "bar" 2
+ |   |  / 
+  \  | /
+   (.=)
+    |
+  print
+    |
+  done
+
+
+
+inheritence
+
+mapping tables
+
+
