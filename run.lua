@@ -18,6 +18,7 @@ local env = _G
 local Node = class()
 
 function Node:init(args)
+	self.conns = {}
 	for k,v in pairs(args) do
 		self[k] = v
 	end
@@ -56,7 +57,7 @@ end
 function Node:getFuncArgValues()
 	-- if its :something: then idk .. return?
 	local args = table()
-	if self.conns and self.conns.up then
+	if self.conns.up then
 		args.n = #self.conns.up
 		for i=1,args.n do
 			args[i] = self.conns.up[i]:eval()
@@ -277,19 +278,15 @@ local function connect(self, from, to, dx, dy)
 	-- left / above
 	local nbfrom = findat(self.x - dx, self.y - dy)
 	if nbfrom then
-		nbfrom.conns = nbfrom.conns or {}
 		nbfrom.conns[to] = nbfrom.conns[to] or table()
 		nbfrom.conns[to]:insert(self)
-		self.conns = self.conns or {}
 		self.conns[from] = self.conns[from] or table()
 		self.conns[from]:insert(nbfrom)
 	end
 	local nbto = findat(self.x + dx, self.y + dy)
 	if nbto then
-		self.conns = self.conns or {}
 		self.conns[to] = self.conns[to] or table()
 		self.conns[to]:insert(nbto)
-		nbto.conns = nbto.conns or {}
 		nbto.conns[from] = nbto.conns[from] or table()
 		nbto.conns[from]:insert(self)
 	end
@@ -330,11 +327,9 @@ repeat
 						local other = conns[j]
 						if Conn:isa(other) then
 							conns:remove(j)
-							if other.conns then
-								if other.conns[side] then
-									conns:append(other.conns[side])
-									other.conns[side] = nil
-								end
+							if other.conns[side] then
+								conns:append(other.conns[side])
+								other.conns[side] = nil
 							end
 							merged = true
 							redo = true
@@ -386,7 +381,7 @@ local function call(node)
 	local ns = table{node}
 	while #ns > 0 do
 		local o = ns:remove(1)
-		if o.conns and o.conns.left then
+		if o.conns.left then
 			ns:append(o.conns.left)
 		else
 			leftmost:insert(o)
@@ -403,7 +398,7 @@ local function call(node)
 	local exec = table(leftmost)
 	while #exec > 0 do
 		local o = exec:remove(1)
-		if o.conns and o.conns.right then
+		if o.conns.right then
 			exec:append(o.conns.right)
 		end
 		-- now execute 'o'
