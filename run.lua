@@ -44,7 +44,13 @@ function Node:__concat(o)
 end
 
 function Node:getLuaFunc()
-	return assert(env[self.value], "failed to find "..self.value)
+	--[[ using names
+	local f = env[self.value]
+	--]]
+	-- [[ using expressions
+	local f = load('return '..self.value, nil, nil, env)
+	--]]
+	return assert(f, "failed to find "..self.value)
 end
 
 function Node:eval()
