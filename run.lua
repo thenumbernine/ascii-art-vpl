@@ -410,7 +410,7 @@ for _,obj in ipairs(nodes) do
 		-- [[ find and track all left-most of all functions as their execution starting points
 		-- TODO instead of finding the leftmost upon call, find it upon function initialization
 		obj.leftmost = table()
-		local ns = table{node}
+		local ns = table{obj}
 		while #ns > 0 do
 			local o = ns:remove(1)
 			if o.conns.left then
