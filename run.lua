@@ -26,6 +26,8 @@ end
 
 function Node:__tostring()
 	local o = table(self)
+	o.leftmost = nil
+	o.args = nil
 	local conns = table(o.conns)
 	o.conns = nil
 	local s = table()
@@ -36,7 +38,7 @@ function Node:__tostring()
 		end
 		s:insert(side..'='..conns[side]:concat',')
 	end
-	o.conns = s:concat'; '
+	if #s > 0 then o.conns = s:concat'; ' end
 	return tolua(o)
 end
 
@@ -81,6 +83,11 @@ local Name = class(Node)
 
 -- function arg
 local Arg = class(Node)
+
+-- TODO .value => .name, and .argval => .value
+function Arg:eval()
+	return self.argval
+end
 
 -- function definition
 local Func = class(Node)
@@ -135,6 +142,7 @@ function Op:getLuaFunc()
 	return assert(opforsym[self.value], "failed to find op for "..self.value)
 end
 
+local tabstop = 4
 
 local nodes = table()
 for y=1,#ls do
@@ -158,6 +166,8 @@ for y=1,#ls do
 	while x <= n do
 		local c = l:sub(x,x)
 		if c == ' ' then
+		elseif c == '\t' then
+			x = x + tabstop - 1
 		elseif connchars[c] then
 			nodes:insert(Conn{
 				value = c,
@@ -221,7 +231,10 @@ for y=1,#ls do
 			local k = x+1
 			while true do
 				local kc = l:sub(k,k)
-				if kc == ' ' or connchars[kc] then
+				if kc == ' ' 
+				or kc == '\t'
+				or connchars[kc] 
+				then
 					k = k - 1
 					break
 				end
@@ -251,15 +264,6 @@ for y=1,#ls do
 	end
 end
 
-if trace then
-	print'initially found nodes:'
-	for i,obj in ipairs(nodes) do
-		print(nodes[i])
-	end
-end
-
-
-
 -- btw what about spaces in strings?
 
 local function findat(x, y)
@@ -273,6 +277,39 @@ local function findat(x, y)
 		end
 	end
 end
+
+-- if theres a number with a '-' to its left then make it a negative
+do
+	local redo
+	repeat
+		redo = false
+		for i=#nodes,1,-1 do
+			local n = nodes[i]
+			if Number:isa(n) then
+				local at = findat(n.x-1, n.y)
+				if Conn:isa(at) and at.value == '-' then
+					n.value = -n.value
+					n.x = n.x - 1
+					n.w = n.w + 1
+					nodes:removeObject(at)
+					redo = true
+					break
+				end
+			end
+		end
+	until not redo
+end
+
+if trace then
+	print'initially found nodes:'
+	for i,obj in ipairs(nodes) do
+		print(nodes[i])
+	end
+end
+
+
+
+
 
 local function connect(self, from, to, dx, dy)
 	-- left / above
@@ -379,8 +416,14 @@ local function call(node, ...)
 	-- ... is the input arg values, to replace with all args in the current stack
 	-- yes now we need a call-stack
 	-- TODO
-	--print'found node'
-	
+	if trace then
+		print('calling', node.value)
+		print('with args', ...)
+	end
+	for i=1,select('#', ...) do
+		node.args[i].argval = select(i, ...)
+	end
+
 	local noderesults
 	local exec = table(node.leftmost)
 	while #exec > 0 do
@@ -422,6 +465,29 @@ for _,obj in ipairs(nodes) do
 		if trace then
 			print'leftmost:'
 			for _,l in ipairs(obj.leftmost) do
+				print(l)
+			end
+		end
+		--]]
+
+		-- [[ same, track all topmost args
+		obj.args = table()
+		local ns = table{obj}
+		while #ns > 0 do
+			local o = ns:remove(1)
+			if o.conns.up then
+				ns:append(o.conns.up)
+			else
+				obj.args:insert(o)
+			end
+		end
+		-- TODO allow multiple references?  and map unique args (inputs) to each ref?
+		obj.args = obj.args
+			:filter(function(a) return Arg:isa(a) end)
+			:sort(function(a,b) return a.x < b.x end)
+		if trace then
+			print'args:'
+			for _,l in ipairs(obj.args) do
 				print(l)
 			end
 		end
