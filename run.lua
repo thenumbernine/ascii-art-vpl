@@ -14,15 +14,16 @@ local connchars = string.split('|/-\\*+'):mapi(function(s,i) return i,s end):set
 
 local env = _G
 
-local Object = class()
 
-function Object:init(args)
+local Node = class()
+
+function Node:init(args)
 	for k,v in pairs(args) do
 		self[k] = v
 	end
 end
 
-function Object:__tostring()
+function Node:__tostring()
 	local o = table(self)
 	local conns = table(o.conns)
 	o.conns = nil
@@ -38,9 +39,53 @@ function Object:__tostring()
 	return tolua(o)
 end
 
-function Object:__concat(o)
+function Node:__concat(o)
 	return tostring(self)..tostring(o)
 end
+
+function Node:getLuaFunc()
+	return assert(env[self.value], "failed to find "..self.value)
+end
+
+function Node:eval()
+	-- if its :something: then idk .. return?
+
+	local args = table()
+	local n
+	if self.conns and self.conns.up then
+		n = #self.conns.up
+		for i=1,n do
+			args[i] = self.conns.up[i]:eval()
+		end
+	end
+
+	-- is it a function def?
+	-- then just forward return
+	if self.value:match'^:(.*):$' then
+		return args:unpack(1,n)
+	end
+
+	if trace then
+		print('calling '..self.value)
+	end
+	local f = self:getLuaFunc()
+	return f(args:unpack(1,n))
+end
+
+local Conn = class(Node)
+
+local Name = class(Node)
+
+local Value = class(Node)
+
+function Value:eval()
+	return self.value
+end
+
+local String = class(Value)
+
+local Number = class(Value)
+
 
 local op = require 'ext.op'
 local opforsym = {
@@ -69,44 +114,15 @@ local opforsym = {
 }
 -- TODO arshift, rotate left , rotate right, int-div
 
-function Object:eval()
-	if self.type == 'string' 
-	or self.type == 'number'
-	then
-		return self.value
-	end
 
-	-- if its :something: then idk .. return?
+local Op = class(Node)
 
-	local args = table()
-	local n
-	if self.conns and self.conns.up then
-		n = #self.conns.up
-		for i=1,n do
-			args[i] = self.conns.up[i]:eval()
-		end
-	end
-
-	-- is it a function def?
-	-- then just forward return
-	if self.value:match'^:(.*):$' then
-		return args:unpack(1,n)
-	end
-
-	if trace then
-		print('calling '..self.value)
-	end
-	local f
-	if self.type == 'op' then
-		f = assert(opforsym[self.value], "failed to find op for "..self.value)
-	else
-		f = assert(env[self.value], "failed to find "..self.value)
-	end
-
-	return f(args:unpack(1,n))
+function Op:getLuaFunc()
+	return assert(opforsym[self.value], "failed to find op for "..self.value)
 end
 
-local objs = table()
+
+local nodes = table()
 for y=1,#ls do
 	local l = ls[y]
 	local n = #l
@@ -115,8 +131,7 @@ for y=1,#ls do
 		local c = l:sub(x,x)
 		if c == ' ' then
 		elseif connchars[c] then
-			objs:insert(Object{
-				type = 'conn',
+			nodes:insert(Conn{
 				value = c,
 				x = x,
 				y = y,
@@ -135,8 +150,7 @@ for y=1,#ls do
 				end
 				k = k + 1
 			end
-			objs:insert(Object{
-				type = 'string',
+			nodes:insert(String{
 				value = l:sub(x+1,k-1),
 				x = x,
 				y = y,
@@ -154,8 +168,7 @@ for y=1,#ls do
 				end
 				k = k + 1
 			end
-			objs:insert(Object{
-				type = 'op',
+			nodes:insert(Op{
 				value = l:sub(x+1,k-1),
 				x = x,
 				y = y,
@@ -181,8 +194,7 @@ for y=1,#ls do
 			local value = l:sub(x,k)
 			local num = tonumber(value)
 			if num then
-				objs:insert(Object{
-					type = 'number',
+				nodes:insert(Number{
 					value = num,
 					x = x,
 					y = y,
@@ -190,8 +202,7 @@ for y=1,#ls do
 					h = 1,
 				})		
 			else
-				objs:insert(Object{
-					type = 'name',
+				nodes:insert(Name{
 					value = value,
 					x = x,
 					y = y,
@@ -208,7 +219,7 @@ end
 -- btw what about spaces in strings?
 
 local function findat(x, y)
-	for _,obj in ipairs(objs) do
+	for _,obj in ipairs(nodes) do
 		if obj.x <= x 
 		and obj.y <= y 
 		and x <= obj.x + obj.w - 1
@@ -242,8 +253,8 @@ local function connect(self, from, to, dx, dy)
 end
 
 -- now merge connections
-for _,obj in ipairs(objs) do
-	if obj.type == 'conn' then
+for _,obj in ipairs(nodes) do
+	if Conn:isa(obj) then
 		-- connect it
 		if obj.value == '|' then
 			connect(obj, 'up', 'down', 0, 1)
@@ -265,8 +276,8 @@ end
 local merged
 repeat
 	merged = false
-	for i,obj in ipairs(objs) do
-		if obj.type ~= 'conn' then
+	for i,obj in ipairs(nodes) do
+		if not Conn:isa(obj) then
 			for side, conns in pairs(obj.conns) do
 				local redo
 				repeat
@@ -274,7 +285,7 @@ repeat
 					redo = false
 					for j=#conns,1,-1 do
 						local other = conns[j]
-						if other.type == 'conn' then
+						if Conn:isa(other) then
 							conns:remove(j)
 							if other.conns then
 								if other.conns[side] then
@@ -293,10 +304,10 @@ repeat
 	end
 until not merged
 
-for i=#objs,1,-1 do
-	local o = objs[i]
-	if o.type == 'conn' then
-		objs:remove(i)
+for i=#nodes,1,-1 do
+	local o = nodes[i]
+	if Conn:isa(o) then
+		nodes:remove(i)
 	else
 		-- sort conns.up .down by x
 		-- sort conns.left .right by y
@@ -317,9 +328,9 @@ for i=#objs,1,-1 do
 end
 
 if trace then
-	print'objs:'
-	for i,obj in ipairs(objs) do
-		print(objs[i])
+	print'nodes:'
+	for i,obj in ipairs(nodes) do
+		print(nodes[i])
 	end
 end
 
@@ -367,9 +378,9 @@ local function call(node)
 	end
 end
 
-for _,obj in ipairs(objs) do
+for _,obj in ipairs(nodes) do
 	-- TODO for these names, change the type to 'func' or something
-	if obj.type == 'name' then
+	if Name:isa(obj) then
 		--assert(obj.value, "got a name obj with no value "..tostring(obj))
 		local funcname = obj.value:match'^:(.*):$' 
 		if funcname then

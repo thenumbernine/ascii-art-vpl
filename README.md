@@ -23,3 +23,5 @@ TODO
 `<arg>` for function arguments
 
 tables and indexing operations
+
+non-piped connection
