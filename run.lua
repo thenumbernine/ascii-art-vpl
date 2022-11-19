@@ -379,6 +379,33 @@ repeat
 	end
 until not merged
 
+--[[
+-- alternative to merge conns and collapse edges
+-- how about just follow the path of each non-conn obj?
+for _,n in ipairs(nodes) do
+	if not Conn:isa(n) then
+		local hasbeen = {}
+		local tocheck = {}
+		for y=n.y-1,n.y+n.h do
+			for x=n.x-1,n.x+n.w do
+				if x >= n.x and x < n.x+n.w
+				and y >= n.y and y < n.y+n.h
+				then
+					-- skip
+					hasbeen[x..','..y] = true
+				else
+					-- look for conns
+					tocheck[x..','..y] = true
+				end
+			end
+		end
+		-- ...now recursively traverse tocheck, skip hasbeen
+		-- and move tocheck's into hasbeen's
+	end
+end
+--]]
+
+
 for i=#nodes,1,-1 do
 	local o = nodes[i]
 	if Conn:isa(o) then
