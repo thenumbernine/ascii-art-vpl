@@ -1,5 +1,5 @@
 #!/usr/bin/env lua
-local file = require 'ext.file'
+local path = require 'ext.path'
 local class = require 'ext.class'
 local table = require 'ext.table'
 local string = require 'ext.string'
@@ -7,7 +7,7 @@ local tolua = require 'ext.tolua'
 
 local fn, trace = ...
 if not fn then error("expected: run.lua <filename>") end
-local d = assert(file(fn)):read()
+local d = assert(path(fn)):read()
 local ls = string.split(d, '\n')
 
 local connchars = string.split('|/-\\*+'):mapi(function(s,i) return i,s end):setmetatable(nil)
