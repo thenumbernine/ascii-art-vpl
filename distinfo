@@ -1,0 +1,19 @@
+name = "ascii-art-vpl"
+files = {
+	["README.md"] = "ascii-art-vpl/README.md",
+	["fibonacci"] = "ascii-art-vpl/fibonacci",
+	["func"] = "ascii-art-vpl/func",
+	["func_2"] = "ascii-art-vpl/func_2",
+	["func_3"] = "ascii-art-vpl/func_3",
+	["hello_world"] = "ascii-art-vpl/hello_world",
+	["hello_world_2"] = "ascii-art-vpl/hello_world_2",
+	["hello_world_3"] = "ascii-art-vpl/hello_world_3",
+	["math"] = "ascii-art-vpl/math",
+	["math_2"] = "ascii-art-vpl/math_2",
+	["new_language.txt"] = "ascii-art-vpl/new_language.txt",
+	["run.lua"] = "ascii-art-vpl/run.lua",
+	["test.lua"] = "ascii-art-vpl/test.lua",
+}
+deps = {
+	"ext",
+}
