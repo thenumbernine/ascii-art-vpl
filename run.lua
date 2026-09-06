@@ -510,7 +510,7 @@ for _,obj in ipairs(nodes) do
 		end
 		-- TODO allow multiple references?  and map unique args (inputs) to each ref?
 		obj.args = obj.args
-			:filter(function(a) return Arg:isa(a) end)
+			:filteri(function(a) return Arg:isa(a) end)
 			:sort(function(a,b) return a.x < b.x end)
 		if trace then
 			print'args:'
